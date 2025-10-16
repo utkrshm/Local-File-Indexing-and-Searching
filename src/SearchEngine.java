@@ -47,7 +47,7 @@ public class SearchEngine {
         List<SearchResult> results = new ArrayList<>();
         for (int docId : scores.keySet()) {
             Document doc = documents.get(docId);
-            results.add(new SearchResult(doc.getFilePath(), doc.getContent(), scores.get(docId)));
+            results.add(new SearchResult(doc.getFilePath(), doc.getContent(), query, scores.get(docId)));
         }
 
         Collections.sort(results);
