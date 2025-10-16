@@ -94,8 +94,10 @@ public class SearchEngine {
 
         List<SearchResult> output = new ArrayList<>();
         for (int docId : matchingDocs) {
-            output.add(new SearchResult(docId, documents.get(docId).getContent()));
+            Document doc = documents.get(docId);
+            output.add(new SearchResult(doc.getFilePath(), doc.getContent()));
         }
+
         return output;
     }
 }

@@ -28,7 +28,7 @@ public class DocumentLoader {
             try {
                 String content = extractText(file);
                 if (content != null && !content.trim().isEmpty()) {
-                    documents.add(new Document(id++, content));
+                    documents.add(new Document(id++, content, file.getAbsolutePath()));
                     System.out.println("Loaded: " + file.getName());
                 }
             } catch (Exception e) {

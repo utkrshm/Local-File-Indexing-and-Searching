@@ -1,13 +1,14 @@
 public class SearchResult {
-    private int docId;
+    private String filePath;
     private String snippet;
 
-    public SearchResult(int docId, String snippet) {
-        this.docId = docId;
+    public SearchResult(String filePath, String snippet) {
+        this.filePath = filePath;
         this.snippet = snippet.length() > 120 ? snippet.substring(0, 120) + "..." : snippet;
     }
 
+    @Override
     public String toString() {
-        return "Doc " + docId + ": " + snippet;
+        return "Matched in: " + filePath + "\n" + snippet;
     }
 }
