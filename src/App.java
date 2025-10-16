@@ -8,7 +8,7 @@ public class App {
 
         Scanner sc = new Scanner(System.in);
         while (true) {
-            System.out.print("\nEnter query (or 'exit'): ");
+            System.out.print("\nEnter query, search phrase by enclosing within \"\" (or 'exit'): ");
             String q = sc.nextLine();
             if (q.equalsIgnoreCase("exit")) break;
 

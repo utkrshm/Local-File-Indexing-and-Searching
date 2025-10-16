@@ -2,9 +2,9 @@ import java.util.*;
 import java.util.regex.*;
 
 public class SearchEngine {
-    // term → docId → positions
     private Map<String, Map<Integer, List<Integer>>> invertedIndex = new HashMap<>();
     private Map<Integer, Document> documents = new HashMap<>();
+    private Map<Integer, Integer> docLengths = new HashMap<>();
     private static final Pattern WORD_PATTERN = Pattern.compile("\\w+");
 
     public void indexDocuments(List<Document> docs) {
@@ -17,6 +17,7 @@ public class SearchEngine {
     private void indexDocument(Document doc) {
         Matcher matcher = WORD_PATTERN.matcher(doc.getContent().toLowerCase());
         int position = 0;
+        int length = 0;
 
         while (matcher.find()) {
             String term = matcher.group();
@@ -25,37 +26,47 @@ public class SearchEngine {
                 .computeIfAbsent(doc.getId(), k -> new ArrayList<>())
                 .add(position);
             position++;
+            length++;
         }
+
+        docLengths.put(doc.getId(), length);
     }
 
-    // Regular word query (existing functionality)
     public List<SearchResult> search(String query) {
-        if (query.contains("\"")) {
-            return phraseSearch(query);
+        boolean phrase = query.contains("\"");
+        Map<Integer, Double> scores;
+
+        if (phrase) {
+            List<Integer> matchingDocs = phraseSearchIds(query);
+            scores = computeTfIdfScores(query, matchingDocs);
         } else {
-            return termSearch(query);
+            List<Integer> matchingDocs = termSearchIds(query);
+            scores = computeTfIdfScores(query, matchingDocs);
         }
+
+        List<SearchResult> results = new ArrayList<>();
+        for (int docId : scores.keySet()) {
+            Document doc = documents.get(docId);
+            results.add(new SearchResult(doc.getFilePath(), doc.getContent(), scores.get(docId)));
+        }
+
+        Collections.sort(results);
+        return results;
     }
 
-    private List<SearchResult> termSearch(String query) {
-        Set<Integer> results = new HashSet<>();
+    // Return list of matching doc IDs (terms only)
+    private List<Integer> termSearchIds(String query) {
+        Set<Integer> resultIds = new HashSet<>();
         for (String term : query.toLowerCase().split("\\s+")) {
             if (invertedIndex.containsKey(term)) {
-                results.addAll(invertedIndex.get(term).keySet());
+                resultIds.addAll(invertedIndex.get(term).keySet());
             }
         }
-
-        List<SearchResult> output = new ArrayList<>();
-        for (int docId : results) {
-            Document doc = documents.get(docId);
-            output.add(new SearchResult(doc.getFilePath(), doc.getContent()));
-        }
-
-        return output;
+        return new ArrayList<>(resultIds);
     }
 
-    // Phrase query logic: "deep learning model"
-    private List<SearchResult> phraseSearch(String query) {
+    // Return list of matching doc IDs (phrase)
+    private List<Integer> phraseSearchIds(String query) {
         String phrase = query.replaceAll("\"", "").toLowerCase().trim();
         String[] terms = phrase.split("\\s+");
         if (terms.length == 0) return Collections.emptyList();
@@ -64,7 +75,6 @@ public class SearchEngine {
         if (firstTermDocs == null) return Collections.emptyList();
 
         List<Integer> matchingDocs = new ArrayList<>();
-
         for (int docId : firstTermDocs.keySet()) {
             boolean allMatch = true;
             for (int i = 1; i < terms.length; i++) {
@@ -74,7 +84,6 @@ public class SearchEngine {
                     break;
                 }
 
-                // Check positional adjacency
                 boolean phraseFound = false;
                 for (int pos : firstTermDocs.get(docId)) {
                     if (nextTermDocs.get(docId).contains(pos + i)) {
@@ -89,17 +98,30 @@ public class SearchEngine {
                 }
             }
 
-            if (allMatch) {
-                matchingDocs.add(docId);
+            if (allMatch) matchingDocs.add(docId);
+        }
+
+        return matchingDocs;
+    }
+
+    // Compute TF-IDF scores for a set of documents
+    private Map<Integer, Double> computeTfIdfScores(String query, List<Integer> docIds) {
+        Map<Integer, Double> scores = new HashMap<>();
+        String[] terms = query.replaceAll("\"", "").toLowerCase().split("\\s+");
+        int N = documents.size();
+
+        for (int docId : docIds) {
+            double score = 0.0;
+            for (String term : terms) {
+                Map<Integer, List<Integer>> postings = invertedIndex.get(term);
+                if (postings != null && postings.containsKey(docId)) {
+                    double tf = postings.get(docId).size() / (double) docLengths.get(docId);
+                    double idf = Math.log((N + 1.0) / (postings.size() + 1.0)) + 1; // smoothed
+                    score += tf * idf;
+                }
             }
+            scores.put(docId, score);
         }
-
-        List<SearchResult> output = new ArrayList<>();
-        for (int docId : matchingDocs) {
-            Document doc = documents.get(docId);
-            output.add(new SearchResult(doc.getFilePath(), doc.getContent()));
-        }
-
-        return output;
+        return scores;
     }
 }
